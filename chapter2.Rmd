@@ -1,7 +1,39 @@
-# Insert chapter 2 title here
+# Regression and Model Validation
 
 *Describe the work you have done this week and summarize your learning.*
 
 - Describe your work and results clearly. 
 - Assume the reader has an introductory course level understanding of writing and reading R code as well as statistical methods.
 - Assume the reader has no previous knowledge of your data or the more advanced methods you are using.
+
+### Reading the data  
+```{r}
+lrn14 <- read.table("data/learning2014.txt", header = TRUE, sep = "\t")
+
+str(lrn14)  
+dim(lrn14)
+```
+As we can see, we have here a data frame imported as lrn14. The data reflects the relationship between learning approaches and the students achievements. This dataset includes 166 observations with 7 variables each.  The variables are gender, age, attitude, average of the deep approach, average of the strategic approach, average of the surface approachs and the points obtained in the exam.  
+
+### Exploring the data
+```{r}
+pairs(lrn14[-1])
+summary(lrn14)
+```
+In the first representation we used the *pairs()* function to show the distribution of the different variables as a function of the others.
+
+```{r}
+reg_model <- lm(points ~ attitude + stra + surf, data = lrn14)
+summary(reg_model)
+```
+
+We can observe that in this multiple regression analysis we obtain a p-value that is very close to 0. This means that in this model, our explanatory variables are very likely to explain the dependent variable.  
+The R-Squared represents the proportion of the variance of the points that is explained by the explanatory variables. In this case, our model explains approximately a 20% of the variance of the points.  
+
+```{r}
+par(mfrow = c(2,2))
+plot(reg_model, which = c(1,2,5))
+```
+  
+We can observe from some of the plots that the model represents a good fit. As an example, in the QQ-Plot, the great majority of the values fit very close to the line.  
+On the other hand, in the plot between the Residuals and the Fitted values, we can't observe a major disperstion of the results as the fitted values increased.
