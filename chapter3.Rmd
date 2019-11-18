@@ -1,0 +1,69 @@
+# 3. Logistic regression  
+For this exercise on logistic regression, we will be will be working on data from two questionnaires related to student performance. This data approaches student achievement in secondary education of two Portuguese schools. The data attributes include student grades, demographic, social and school related features) and it was collected by using school reports and questionnaires From this questionnaires, we are particularly interested in the data related to alcohol consumption.  
+
+## Reading the data  
+We will use a prepared data extracted from the previously mentioned data set. We modified it to obtain information relevant for our analysis on alcohol consumption. We will start reading the table, storing it into the variable "alc" and showing the names of the different columns.
+```{r}
+alc <- read.table("data/alc.csv", header = TRUE, sep = "\t")
+colnames(alc)
+```
+## Hypothesis  
+For our analysis we will choose the variables sex, Medu, Fedu and activities. We picked the mother's education and the father's education (Medu and Fedu) as education has been shown to play an important role in very different aspects of life and health. Finally, we will pick the absences variable as we assume it could be linked to high alcohol consumption.  
+
+## Exploring the distributions
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(GGally)
+
+#We isolate the selected variables according to our hypothesis
+pick <- c("high_use","sex","Medu","Fedu","absences")
+alc_pick <- select(alc, one_of(pick))
+
+#We create some plots with the variables
+str(alc_pick)
+gather(alc_pick) %>% glimpse()
+gather(alc_pick) %>% ggplot(aes(value)) + facet_wrap("key", scales="free") + geom_bar()
+
+
+p1 <- ggplot(alc_pick, aes(sex, fill=high_use)) 
+p2 <- ggplot(alc_pick, aes(Medu, fill=high_use))
+p3 <- ggplot(alc_pick, aes(Fedu, fill=high_use))
+p4 <- ggplot(alc_pick, aes(x=high_use, y=absences))
+
+p1 + geom_bar()
+p2 + geom_bar()
+p3 + geom_bar()
+p4 + geom_boxplot()
+
+table(alc_pick$high_use, alc_pick$sex)
+table(alc_pick$high_use, alc_pick$Medu)
+table(alc_pick$high_use, alc_pick$Fedu)
+table(alc_pick$high_use, alc_pick$absences)
+```
+For what we can see in this initial explorations, the sex variable seem to have a some relevance. Fedu (father's education) shows similar results in both groups. However, Medu (mother's education) and absences seem to have some indications of influence on alcohol consumption on young people.  
+
+## Logistic regression  
+```{r}
+m <- glm(data=alc_pick, high_use ~ sex + Medu + Fedu + absences, family="binomial")
+summary(m)
+```
+The results show that just sex is a relevant variable from the ones we chose.
+We will build a new model with just the sex variable.
+```{r}
+m2 <- glm(data=alc_pick, high_use ~ sex + absences, family="binomial")
+summary(m2)
+OR <- coef(m2) %>% exp
+CI <- confint(m2) %>% exp
+cbind(OR, CI)
+```
+According to these results, males are almost 2.6 times more likely to have a high alcohol consumption than females. Absences are also linked. the data showing that high alcohol consumption probabilities grows as absences increase.
+```{r}
+prob <- predict(m2, type="response")
+alc_pick <- mutate (alc_pick, probs = prob)
+alc_pick <- mutate(alc_pick, prediction = probs > .5)
+table(high_use = alc_pick$high_use, prediction = alc_pick$prediction)
+# plot
+ggplot(alc_pick, aes(x = probs, y = high_use, col = prediction)) + geom_point()
+```
