@@ -1,0 +1,65 @@
+# 5. Dimensionality reduction techniques
+
+## Graphical overview and summaries
+```{r}
+library(corrplot)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(GGally)
+human <- read.csv(file ="~/IODS-project/data/human.csv", row.names = 1)
+summary(human)
+ggplot(gather(human), aes(value)) + facet_wrap(~ key, scales = "free") + geom_density(fill="#FF9999", colour="black")
+ggpairs(human)
+cor(human) %>% corrplot(type = "upper")
+```
+  
+We have eight numeric variables. In the graphical representations, we can see that in general the different values show normal distributions, accumulating the majority of the cases around a central point. We observe how there are some negative and positive relations between different values, like adolescent birth rate and maternal mortality ratio.  
+  
+## Performing Principal Component Analysis (PCA)  
+PCA on the not standardized human data  
+```{r}
+pca_human <- prcomp(human)
+biplot(pca_human, choices = 1:2, cex = c(0.8, 1), col = c("grey40", "deeppink2"))
+```
+  
+Because the PCA is supposed to be done with standardized values, we get some warnings. The results we obtain are related to the scale of the values. Higher scales (like in the case of the GNI index that we modified) results in higher relevance in the plot. 
+
+## Performing Principal Component Analysis (PCA) with standardized values  
+```{r}
+# We standardized the variables
+human_std <- scale(human)
+pca_humanstd <- prcomp(human_std)
+s <- summary(pca_humanstd)
+s
+pca_pr <- round(100*s$importance[2, ], digits = 1)
+pc_lab <- paste0(names(pca_pr), " (", pca_pr, "%)")
+biplot(pca_humanstd, cex = c(0.8, 1), col = c("grey40", "red"), xlab = pc_lab[1], ylab = pc_lab[2])
+```
+  
+As we mentioned, it was impossible to observe useful information from the biplot with the non-standardized values. However, with this new biplot, we are able to see clearly some information. We observe, for example, how the first Principal Component, situated in the X axis, correposponds to the 53.6% of the total variance, while the second Principal Component, situated in the Y axis, correspondes to the 16,2% of the total variance in the original variables.  
+We can also observe how the original variables are easily distributed in two directions (almost in parallel to the axis). For example, repPar and labFM are in the same direction than the PC2, while the other variables are in the direction of the PC1. We also see how the angles between the variables have for the most part small angles between each, which demonstrates a high correlation (this correlation can be positive or negative).  
+Being more specific, we can observe how the maternal mortality is highly correlated with the adolescent birth rate. We also observe how the ratio of female workers over men is linked with the number of female parliamentary representatives. And we can conclude also that these two variables have no correlation with the maternal mortality or the adolescent birth rate. Finally, we can observe how the life expectancy, the expected education levels, the GNI ratio or the ratio of female over male education have a high degree of positive correlation with each other and have a strong negative correlation with the adolescent birth rate and maternal mortality rate.  
+
+## Interpretation of components  
+The first Principal Component seems to represent a value of the general health and life conditions and gender equality  in the domestic sphere.  
+On the other hand, the second Principal Component seems to represent the integration of women in the public sphere (politics and jobs).  
+
+## Multiple Correspondence Analysis  
+```{r}
+library(FactoMineR)
+data(tea)
+str(tea)
+dim(tea)
+keep_columns <- c("Tea", "How", "how", "sugar", "where", "lunch","pub","always")
+tea_time <- select(tea, one_of(keep_columns))
+str(tea_time)
+gather(tea_time) %>% ggplot(aes(value)) + facet_wrap("key", scales = "free") + geom_bar() + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+mca <- MCA(tea_time, graph = TRUE)
+summary(mca)
+plot.MCA(mca, invisible=c("var","quali.sup"), cex=0.7)
+plot.MCA(mca, invisible=c("ind"), cex=0.7)
+plot(mca, invisible=c("quali.sup"), habillage= "quali")
+```
+  
+We can observe in the different plots the variables that define the created dimensions. We also observe the relation between the different variables. The variables that are closer in the space in the plot representation have higher correlation. For instance, in the first MCA factor map, we see how the values **tea shop** and **unpackaged** are closer to each other than to any other value. This explaine the connection that they have.
