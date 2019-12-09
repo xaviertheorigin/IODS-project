@@ -1,0 +1,163 @@
+# 6. Analysis of longitudinal data
+
+We will use the two datasets that we developed in the meet_and_repeat R script.  
+First, we will start with the dataset RATS. 
+
+## RATS
+
+```{r}
+#We load the needed libraries
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+ratsl <- read.csv(file = "~/IODS-project/data/ratsl.csv", row.names = 1)
+
+#We convert the categorical variables into factors again
+ratsl$Group <- factor(ratsl$Group)
+ratsl$ID <- factor(ratsl$ID)
+
+#We stardardize the ratsl dataset
+ratsl <- ratsl %>% group_by(Time) %>% mutate(stweight = (Weight - mean(Weight)) / sd(Weight)) %>% ungroup()
+str(ratsl)
+
+#We plot the information from the dataset
+ggplot(ratsl, aes(x = Time, y = Weight, linetype = ID)) + geom_line() + facet_grid(. ~ Group, labeller = label_both) + scale_linetype_manual(values = rep(1:6, times=4)) + theme(legend.position = "none") +   scale_y_continuous(limits = c(min(ratsl$Weight), max(ratsl$Weight)))
+```
+  
+We can perceive an increase of weight, with certain differences, in all of the three groups.
+
+```{r}
+n <- ratsl$Time %>% unique() %>% length()
+
+# Summarize mean and standard error
+ratssum <- ratsl %>% group_by(Group, Time) %>% summarise(mean = mean(Weight), se = ( sd(Weight) / sqrt(n) )) %>% ungroup()
+glimpse(ratssum)
+par(mfrow = c(1,2))
+
+#We focus first on the means
+ggplot(ratssum, aes(x = Time, y = mean, linetype = Group, shape = Group)) +
+  geom_line() +
+  scale_linetype_manual(values = c(1,2,3)) +
+  geom_point(size=3) +
+  scale_shape_manual(values = c(1,2,3)) +
+  theme(legend.position = c(0.9,0.5)) +
+  scale_y_continuous(name = "mean(Weight) +/- se(Weight)")
+
+#We add the error
+ggplot(ratssum, aes(x = Time, y = mean, linetype = Group, shape = Group)) +
+  geom_line() +
+  scale_linetype_manual(values = c(1,2,3)) +
+  geom_point(size=3) +
+  scale_shape_manual(values = c(1,2,3)) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se, linetype="1"), width=0.3) +
+  theme(legend.position = c(0.9,0.5)) +
+  scale_y_continuous(name = "mean(Weight) +/- se(Weight)")
+
+#We draw the boxplot
+ggplot(ratsl, aes(x = factor(Time), y = Weight, fill = Group)) + geom_boxplot()
+```
+
+Boxplots with non-summarized data.
+
+```{r}
+#We create a summary for the first 8 weeks
+rat8s <- ratsl %>%
+  filter(Time > 0) %>%
+  group_by(Group, ID) %>%
+  summarise( mean=mean(Weight) ) %>%
+  ungroup()
+glimpse(rat8s)
+ggplot(rat8s, aes(x=Group, y = mean)) + geom_boxplot() + stat_summary(fun.y = "mean", geom = "point", shape=23, size=4, fill = "pink")
+```
+  
+  We can observe some values that can distort our results. It is best practice to neutralize them.
+
+```{r}
+#We get rid of the outlier
+glimpse(rat8s)
+rat8s1 <- filter(rat8s, Group == 2 & mean < 550 | Group == 1 & mean > 260 | Group == 3 & mean > 500)
+glimpse(rat8s1)
+ggplot(rat8s1, aes(x=Group, y = mean)) + geom_boxplot() + stat_summary(fun.y = "mean", geom = "point", shape=23, size=4, fill = "pink")
+```
+  
+Once the outlier disappears, the results seem more focus around a certain point and with less dispertion of the values.  
+
+```{r}
+summary(aov(mean ~ Group, data = rat8s1))
+kruskal.test(mean ~ Group, data = rat8s1)
+```
+
+We can observe that there exists statistically relevant differences between groups.
+  
+```{r}
+#We realize a covariance analysis 
+rats <- read.csv(file = "~/IODS-project/data/rats.csv", row.names = 1)
+rat8s2 <- rat8s %>% mutate(baseline = rats$WD1)
+glimpse(rat8s2)
+fit <- lm(mean ~ baseline + Group, data = rat8s2)
+summary(fit)
+```
+
+Thanks to the covariance analysis, we can see that once the original values from the first week are controlled, there exist basically no differences between the groups.
+
+## BPRS
+
+```{r}
+#We read the data previously modified
+bprsl <- read.csv(file = "~/IODS-project/data/bprsl.csv", row.names = 1)
+
+#We convert the categorical variables into factors again
+bprsl$treatment <- factor(bprsl$treatment)
+bprsl$subject <- factor(bprsl$subject)
+glimpse(bprsl)
+```
+
+```{r}
+#We draw some initial plots to analyze them
+ggplot(bprsl, aes(x = weeks, y = bprs, group = subject)) + geom_line() + facet_grid(. ~ treatment, labeller = label_both) 
+```
+  
+There is a clear tendency of decreasing values over time in both treatment groups.
+
+
+```{r}
+bps_reg <- lm(bprs ~ weeks + treatment, data=bprsl)
+summary(bps_reg)
+```
+
+```{r}
+library(lme4)
+bps_ref <- lmer(bprs ~ weeks + treatment + (1|subject), data = bprsl, REML=FALSE)
+summary(bps_ref)
+```
+
+```{r}
+bps_ref2 <- lmer(bprs ~ weeks + treatment + (weeks|subject), data = bprsl, REML=FALSE)
+summary(bps_ref2)
+anova(bps_ref, bps_ref2)
+```
+We see significant results in model 2.
+```{r}
+bps_ref3 <- lmer(bprs ~ weeks * treatment + (weeks|subject), data = bprsl, REML=FALSE)
+summary(bps_ref3)
+anova(bps_ref2, bps_ref3)
+```
+We cannot find statistically significant results for this model.
+```{r}
+#Create a vector of the fitted values
+Fitted <- fitted(bps_ref2)
+bprsl <- bprsl %>% mutate(Fitted)
+
+#We draw a plot with the observed values
+p1 <- ggplot(bprsl, aes(x = weeks, y = bprs, group = subject)) + geom_line() + facet_grid(. ~ treatment, labeller = label_both) + scale_x_continuous(name = "Time (weeks)", breaks = seq(0, 8, 1)) +  ylim(0,100) + theme(legend.position = "top") + ggtitle("Observed values")
+
+#Now a plot with fitted values
+p2 <- ggplot(bprsl, aes(x = weeks, y = Fitted, group = subject)) +
+  geom_line() + facet_grid(. ~ treatment, labeller = label_both) +
+  scale_x_continuous(name = "Time (weeks)", breaks = seq(0, 8, 1)) +
+  ylim(0, 100) +
+  theme(legend.position = "top") + ggtitle("Fitted values")
+
+#Finally, we print the plots
+p1; p2
+```
