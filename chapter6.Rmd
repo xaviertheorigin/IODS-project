@@ -149,15 +149,12 @@ Fitted <- fitted(bps_ref2)
 bprsl <- bprsl %>% mutate(Fitted)
 
 #We draw a plot with the observed values
-p1 <- ggplot(bprsl, aes(x = weeks, y = bprs, group = subject)) + geom_line() + facet_grid(. ~ treatment, labeller = label_both) + scale_x_continuous(name = "Time (weeks)", breaks = seq(0, 8, 1)) +  ylim(0,100) + theme(legend.position = "top") + ggtitle("Observed values")
+ggplot(bprsl, aes(x = weeks, y = bprs, group = subject)) + geom_line() + facet_grid(. ~ treatment, labeller = label_both) + scale_x_continuous(name = "Time (weeks)", breaks = seq(0, 8, 1)) +  ylim(0,100) + theme(legend.position = "top") + ggtitle("Observed values")
 
 #Now a plot with fitted values
-p2 <- ggplot(bprsl, aes(x = weeks, y = Fitted, group = subject)) +
+ggplot(bprsl, aes(x = weeks, y = Fitted, group = subject)) +
   geom_line() + facet_grid(. ~ treatment, labeller = label_both) +
   scale_x_continuous(name = "Time (weeks)", breaks = seq(0, 8, 1)) +
   ylim(0, 100) +
   theme(legend.position = "top") + ggtitle("Fitted values")
-
-#Finally, we print the plots
-p1; p2
 ```
